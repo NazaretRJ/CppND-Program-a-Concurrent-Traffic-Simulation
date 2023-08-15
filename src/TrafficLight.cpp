@@ -23,10 +23,22 @@ void MessageQueue<T>::send(T &&msg)
 
 /* Implementation of class "TrafficLight" */
 
-/* 
-TrafficLight::TrafficLight()
+
+int getRandomNumber()
 {
-    _currentPhase = TrafficLightPhase::red;
+    const int min {4};
+    const int max {6};
+
+    std::random_device rd; // Obtain a random seed from hardware
+    std::mt19937 generator(rd()); // Seed the generator
+    std::uniform_int_distribution<int> distribution(min, max); // Create a uniform distribution
+
+    return distribution(generator); // Generate and return a random number in the range [min, max]
+}
+
+TrafficLight::TrafficLight() : 
+    _currentPhase{ TrafficLightPhase::red}
+{
 }
 
 void TrafficLight::waitForGreen()
@@ -44,6 +56,7 @@ TrafficLightPhase TrafficLight::getCurrentPhase()
 void TrafficLight::simulate()
 {
     // FP.2b : Finally, the private method „cycleThroughPhases“ should be started in a thread when the public method „simulate“ is called. To do this, use the thread queue in the base class. 
+    threads.emplace_back(std::thread(&TrafficLight::cycleThroughPhases, this));
 }
 
 // virtual function which is executed in a thread
@@ -53,6 +66,35 @@ void TrafficLight::cycleThroughPhases()
     // and toggles the current phase of the traffic light between red and green and sends an update method 
     // to the message queue using move semantics. The cycle duration should be a random value between 4 and 6 seconds. 
     // Also, the while-loop should use std::this_thread::sleep_for to wait 1ms between two cycles. 
+
+    int cycleDuration = getRandomNumber() * 1000; //converted to ms
+
+    auto startTime {std::chrono::steady_clock::now()};
+    auto endTime {startTime};
+    int elapsedTime {0};
+    while(true)
+    {
+        elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count(); // in ms
+
+        if(elapsedTime >= cycleDuration)
+        {
+            std::lock_guard<std::mutex> lck(_mutex);
+            if(_currentPhase == TrafficLightPhase::red){  
+                _currentPhase = TrafficLightPhase::green;
+            }
+            else{
+                _currentPhase = TrafficLightPhase::red;
+            }
+
+            //Update the message
+            _queue.send(std::move(_currentPhase));
+        }
+
+        startTime = endTime;
+        cycleDuration = getRandomNumber() * 1000; //converted to ms
+
+        // simulate work
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
 }
 
-*/
